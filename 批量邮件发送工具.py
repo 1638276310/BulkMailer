@@ -5,6 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from email.mime.image import MIMEImage
+from email.utils import formataddr
 import openpyxl
 import os
 from PyQt5.QtGui import QIcon, QFont, QPixmap
@@ -29,10 +30,18 @@ def get_smtp_server(email):
         return None, None
 
 # 发送邮件函数
-def send_email(sender_email, sender_pass, recipient_email, subject, message, attachment_paths):
+def send_email(sender_email, sender_display_email, sender_nickname, sender_pass, recipient_email, subject, message, attachment_paths):
     msg = MIMEMultipart()
     msg['Subject'] = subject
-    msg['From'] = sender_email
+    
+    # 设置发件人信息（显示邮箱和昵称）
+    display_info = sender_email  # 强制使用登录邮箱，忽略自定义发件人邮箱
+    if sender_nickname:  # 如果有昵称
+        # 使用formataddr设置带昵称的发件人
+        msg['From'] = formataddr((sender_nickname, display_info))
+    else:  # 如果没有昵称，直接使用邮箱
+        msg['From'] = display_info
+        
     msg['To'] = recipient_email
 
     # 添加邮件正文（纯文本）
@@ -171,16 +180,34 @@ class EmailSenderApp(QMainWindow):
         left_layout = QVBoxLayout()
         left_widget.setLayout(left_layout)
 
-        # 发件人邮箱和授权码
+        # 发件人信息组
         sender_group = QGroupBox("发件人信息")
         sender_layout = QFormLayout()
-        self.entry_sender_email = QLineEdit()
-        self.entry_sender_email.setPlaceholderText("请输入发件人邮箱")
+        
+        # 登录邮箱（用于SMTP认证）
+        self.entry_login_email = QLineEdit()
+        self.entry_login_email.setPlaceholderText("请输入登录邮箱")
+        
+        # 发件人邮箱（显示在邮件头中的地址）
+        self.entry_display_email = QLineEdit()
+        self.entry_display_email.setDisabled(True)  # 禁用输入框
+        self.entry_display_email.setPlaceholderText("功能暂不可用")  # 更新提示文本
+        
+        # 发件人昵称（显示在邮件头中的名称）
+        self.entry_sender_nickname = QLineEdit()
+        self.entry_sender_nickname.setPlaceholderText("请输入发件人昵称（可选）")
+        
+        # 授权码
         self.entry_password = QLineEdit()
         self.entry_password.setPlaceholderText("请输入授权码")
         self.entry_password.setEchoMode(QLineEdit.Password)
-        sender_layout.addRow("发件人邮箱:", self.entry_sender_email)
+        
+        # 添加表单行
+        sender_layout.addRow("登录邮箱:", self.entry_login_email)
+        sender_layout.addRow("发件人邮箱:", self.entry_display_email)
+        sender_layout.addRow("发件人昵称:", self.entry_sender_nickname)
         sender_layout.addRow("授权码:", self.entry_password)
+        
         sender_group.setLayout(sender_layout)
         left_layout.addWidget(sender_group)
 
@@ -293,16 +320,16 @@ class EmailSenderApp(QMainWindow):
         self.email_list_group.setTitle(f"邮箱列表 ({count})")
 
     def test_smtp_login(self):
-        sender_email = self.entry_sender_email.text()
+        login_email = self.entry_login_email.text()
         sender_pass = self.entry_password.text()
         smtp = None
         try:
-            smtp_server, smtp_port = get_smtp_server(sender_email)
+            smtp_server, smtp_port = get_smtp_server(login_email)
             if not smtp_server:
                 show_custom_message_box(QMessageBox.Critical, "不支持的邮箱域名", "错误")
                 return
             smtp = smtplib.SMTP_SSL(smtp_server, smtp_port)
-            smtp.login(sender_email, sender_pass)
+            smtp.login(login_email, sender_pass)
             self.is_logged_in = True  # 登录成功，设置状态为 True
             show_custom_message_box(QMessageBox.Information, "SMTP登录成功！", "成功")
         except Exception as e:
@@ -357,12 +384,14 @@ class EmailSenderApp(QMainWindow):
             show_custom_message_box(QMessageBox.Warning, "请先测试SMTP登录并成功登录！", "警告")
             return
 
-        sender_email = self.entry_sender_email.text()
+        login_email = self.entry_login_email.text()
+        display_email = self.entry_display_email.text()  # 获取发件人邮箱（显示地址）
+        sender_nickname = self.entry_sender_nickname.text()  # 获取发件人昵称
         sender_pass = self.entry_password.text()
         subject = self.entry_subject.text()
         message = self.text_message.toPlainText()  # 获取纯文本内容
 
-        if not sender_email or not sender_pass or not subject or not message:
+        if not login_email or not sender_pass or not subject or not message:
             show_custom_message_box(QMessageBox.Warning, "请填写所有必填项！", "警告")
             return
 
@@ -375,7 +404,18 @@ class EmailSenderApp(QMainWindow):
         self.progress_bar.setValue(0)
 
         for i, email in enumerate(email_list):
-            success, failed_email = send_email(sender_email, sender_pass, email, subject, message, attachment_paths)
+            # 传入发件人邮箱和昵称参数
+            success, failed_email = send_email(
+                login_email, 
+                display_email, 
+                sender_nickname, 
+                sender_pass, 
+                email, 
+                subject, 
+                message, 
+                attachment_paths
+            )
+            
             if success:
                 success_count += 1
                 self.table_status.setItem(i, 0, QTableWidgetItem(email))
