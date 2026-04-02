@@ -23,9 +23,6 @@
   <a href="#-联系作者">联系作者</a>
 </p>
 
-<p align="center">
-  <img src="https://github-readme-stats.vercel.app/api/pin/?username=yourusername&repo=BulkMailer&theme=radical&show_icons=true" alt="GitHub Stats">
-</p>
 
 ---
 
