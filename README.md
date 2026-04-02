@@ -67,11 +67,9 @@
 
 > ⚠️ **截图待补充**：请将程序运行截图放入 screenshots/ 目录，并更新以下链接。
 
-| 主界面 | 收件人管理 | 发送进度 |
-|--------|------------|----------|
-| ![主界面](screenshots/main.png) | ![收件人管理](screenshots/recipients.png) | ![发送进度](screenshots/progress.png) |
 
-*提示：您可以使用快捷键 Alt+PrtSc 截取窗口，将图片保存至 screenshots 文件夹并更新上述链接。*
+![主界面](./main.png)
+
 
 ---
 
